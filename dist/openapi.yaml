@@ -1,230 +1,747 @@
 openapi: 3.0.0
 info:
-  title: Recipes api
-  description: API for recipes project
-  version: 1.0.1
+  title: Grandma's Recipes API
+  description: API for managing recipes, users, and meal planning
+  version: 1.0.0
+  
 servers:
-  # local:
-  - url: "http://127.0.0.1:80"
-    # remote:
-    # - url: "http://132.72.65.211"
-    description: SwaggerHub API Auto Mocking hey
+  - url: http://localhost:3000
+    description: Development server
+
 tags:
   - name: Auth
-    description: All authentication related routes
+    description: Authentication operations
   - name: Users
-    description: All the user's personal app info
+    description: User management operations
   - name: Recipes
-    description: All reciepes general info
+    description: Recipe management operations
+
 paths:
   /register:
     post:
       tags:
         - Auth
-      summary: A new user from the client is added to the server
-      description: A JSON object contains all the details about the new user.
+      summary: Register a new user
+      description: Create a new user account
       requestBody:
-        description: Inventory item to add
+        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/User"
-        required: true
+              $ref: '#/components/schemas/UserRegistration'
+            example:
+              username: "johndoe"
+              firstName: "John"
+              lastName: "Doe"
+              country: "Israel"
+              password: "Pass123!"
+              email: "john@example.com"
       responses:
-        "201":
-          description: A new user has been added
-        "400":
-          description: wrong input parameters
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /login:
     post:
       tags:
         - Auth
-      summary: Login an exist user
-      description: An exist user login to the system
+      summary: Login user
+      description: Authenticate user and create session
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginScheme"
-        required: true
+              $ref: '#/components/schemas/LoginCredentials'
+            example:
+              username: "johndoe"
+              password: "Pass123!"
       responses:
-        "200":
-          description: |
-            User was found in the DB and authenitcated successfully. The session ID is returned in a cookie named `session`.  You should include this cookie in subsequent requests
-          headers:
-            Set-Cookie:
-              style: simple
-              explode: false
+        '200':
+          description: Login successful
+          content:
+            application/json:
               schema:
-                type: string
-                example: session=87s97sdhgf279293f8w0e9
-        "401":
-          description: Authentication failed
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /logout:
     post:
       tags:
         - Auth
-      summary: logout a user from the system and delete his cookie
+      summary: Logout user
+      description: End user session
+      security:
+        - cookieAuth: []
       responses:
-        "200":
-          description: "the user has ben successfully logged out"
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
   /users/favorites:
     get:
       tags:
         - Users
-      summary: Return the favorite recipes that were saved by user
-      description: Get an array of recipes that were saved by a specific user
+      summary: Get user's favorite recipes
+      description: Get all recipes marked as favorite by the user
+      security:
+        - cookieAuth: []
       responses:
-        "200":
-          description: data about the user's favorites recipes returned
+        '200':
+          description: List of favorite recipes
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/RecipePreview"
-        "401":
-          description: user is not authorized
-      security:
-        - cookieAuth: []
+                  $ref: '#/components/schemas/RecipePreview'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
     post:
       tags:
         - Users
-      summary: save recipe in the favorites list of a user
-      description: save recipe in the favorites list of a user
+      summary: Add recipe to favorites
+      description: Mark recipe as favorite
+      security:
+        - cookieAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - recipeId
               properties:
-                reciepeId:
+                recipeId:
                   type: string
-                  description: reciepe's id which the user saved
-                  example: 716429
+                  description: Recipe ID to add to favorites
+                  example: "716429"
       responses:
-        "200":
-          description: The Recipe successfully saved as favorite
-        "401":
-          description: user is not authorized
+        '200':
+          description: Recipe added to favorites
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Recipe ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/myRecipes:
+    get:
+      tags:
+        - Users
+      summary: Get user's created recipes
+      description: Get all recipes created by the user
       security:
         - cookieAuth: []
+      responses:
+        '200':
+          description: List of user's recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipePreview'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - Users
+      summary: Create a new recipe
+      description: Create a new user recipe
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeCreation'
+      responses:
+        '201':
+          description: Recipe created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/familyRecipes:
+    get:
+      tags:
+        - Users
+      summary: Get family recipes
+      description: Get user's family recipes
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of family recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyRecipe'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - Users
+      summary: Add a family recipe
+      description: Add a new family recipe
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyRecipeCreation'
+      responses:
+        '201':
+          description: Family recipe created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/last-viewed:
+    get:
+      tags:
+        - Users
+      summary: Get last viewed recipes
+      description: Get last 3 recipes viewed by user
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Last viewed recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipePreview'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /recipes:
+    get:
+      tags:
+        - Recipes
+      summary: Get random recipes
+      description: Get 3 random recipes for homepage
+      responses:
+        '200':
+          description: Random recipes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipePreview'
+
+  /recipes/search:
+    get:
+      tags:
+        - Recipes
+      summary: Search recipes
+      description: Search for recipes with filters
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Search query
+          example: "pasta"
+        - in: query
+          name: number
+          schema:
+            type: integer
+            enum: [5, 10, 15]
+            default: 5
+          description: Number of results to return
+        - in: query
+          name: cuisine
+          schema:
+            type: string
+          description: Filter by cuisine type
+          example: "Italian"
+        - in: query
+          name: diet
+          schema:
+            type: string
+          description: Filter by diet type
+          example: "Vegetarian"
+        - in: query
+          name: intolerance
+          schema:
+            type: string
+          description: Filter by intolerance
+          example: "Gluten"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipePreview'
+
   /recipes/{recipeId}:
     get:
       tags:
         - Recipes
-      summary: Return preview details on recipe by his ID
-      description: Return preview details on recipe by his ID
+      summary: Get recipe details
+      description: Get full recipe details by ID
       parameters:
-        - name: recipeId
-          in: path
-          description: recipe's id
+        - in: path
+          name: recipeId
           required: true
-          style: simple
-          explode: false
           schema:
-            type: integer
+            type: string
+          description: Recipe ID
+      security:
+        - cookieAuth: []
+        - {}
       responses:
-        "200":
-          description: data about the recipe
+        '200':
+          description: Recipe details
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RecipePreview"
-        "404":
-          description: recipeId is not exists
+                $ref: '#/components/schemas/RecipeDetails'
+        '404':
+          description: Recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+
   schemas:
-    User:
+    UserRegistration:
       type: object
+      required:
+        - username
+        - firstName
+        - lastName
+        - country
+        - password
+        - email
       properties:
         username:
-          maxLength: 8
+          type: string
           minLength: 3
+          maxLength: 8
+          pattern: '^[a-zA-Z]+$'
+          description: Username (3-8 letters only)
+          example: "johndoe"
+        firstName:
           type: string
-          description: username conatins between 3 to 8 letters only
-          example: my_name
-        firstname:
+          description: User's first name
+          example: "John"
+        lastName:
           type: string
-          description: user's first name
-          example: my_first_name
-        lastname:
-          type: string
-          description: user's last name
-          example: my_last_name
+          description: User's last name
+          example: "Doe"
         country:
           type: string
-          description: user's country
-          example: Israel
+          description: User's country
+          example: "Israel"
         password:
-          maxLength: 10
+          type: string
           minLength: 5
-          type: string
-          description:
-            password conatins between 5 to 10 chars, at least one of them
-            is a number and a special char
-          format: password
-          example: my_name@12
+          maxLength: 10
+          pattern: '^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$'
+          description: Password (5-10 chars, at least 1 number and 1 special char)
+          example: "Pass123!"
         email:
-          pattern: email
           type: string
-          description: user's email
-          example: my_name12@gmail.com
-        # image-url:
-        #   pattern: URL
-        #   type: string
-        #   description: URL for the user's image
-        #   example: https://cloudinary.com/
-      description: Model containing user info
-    LoginScheme:
+          format: email
+          description: User's email
+          example: "john@example.com"
+
+    LoginCredentials:
       type: object
+      required:
+        - username
+        - password
       properties:
         username:
-          maxLength: 8
-          minLength: 3
           type: string
-          description: username conatins letters only
+          description: Username
+          example: "johndoe"
         password:
-          maxLength: 10
-          minLength: 5
-          description: password conatins at least one number and one special char
-          format: password
-      example:
-        username: my_name
-        password: my_name@12
+          type: string
+          description: Password
+          example: "Pass123!"
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Login successful"
+        username:
+          type: string
+          example: "johndoe"
+
     RecipePreview:
       type: object
       properties:
         id:
-          type: integer
-          description: recipe identifier
-          example: 102
+          type: string
+          description: Recipe ID
+          example: "716429"
         title:
           type: string
-          description: recipe name
-          example: Simple Macaroni and Cheese
+          description: Recipe title
+          example: "Pasta with Garlic, Scallions, Cauliflower & Breadcrumbs"
         image:
           type: string
-          description: recipe image
-          format: URL
-          example: https://spoonacular.com/recipeimages/655455-566x370.jpg
+          description: Recipe image URL
+          example: "https://spoonacular.com/recipeImages/716429-556x370.jpg"
         readyInMinutes:
           type: integer
-          description: the time takes to make this recipe
+          description: Preparation time in minutes
           example: 45
         popularity:
           type: integer
-          description: how many likes got this recipe
-          example: 5987
+          description: Recipe popularity (likes)
+          example: 209
         vegetarian:
           type: boolean
-          description: indication if the recipe is vegetarian
+          description: Is vegetarian
           example: false
         vegan:
           type: boolean
-          description: indication if the recipe is vegan
+          description: Is vegan
           example: false
         glutenFree:
           type: boolean
-          description: indication if the recipe is gluten free
+          description: Is gluten free
           example: false
+        viewed:
+          type: boolean
+          description: Has user viewed this recipe
+          example: false
+        favorite:
+          type: boolean
+          description: Is recipe in user's favorites
+          example: false
+
+    RecipeDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Recipe ID
+          example: "716429"
+        title:
+          type: string
+          description: Recipe title
+          example: "Pasta with Garlic, Scallions, Cauliflower & Breadcrumbs"
+        image:
+          type: string
+          description: Recipe image URL
+          example: "https://spoonacular.com/recipeImages/716429-556x370.jpg"
+        readyInMinutes:
+          type: integer
+          description: Preparation time in minutes
+          example: 45
+        popularity:
+          type: integer
+          description: Recipe popularity (likes)
+          example: 209
+        vegetarian:
+          type: boolean
+          description: Is vegetarian
+          example: false
+        vegan:
+          type: boolean
+          description: Is vegan
+          example: false
+        glutenFree:
+          type: boolean
+          description: Is gluten free
+          example: false
+        servings:
+          type: integer
+          description: Number of servings
+          example: 2
+        extendedIngredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "flour"
+              amount:
+                type: number
+                example: 1.5
+              unit:
+                type: string
+                example: "cups"
+        instructions:
+          type: string
+          description: Cooking instructions
+          example: "1. Boil water..."
+        viewed:
+          type: boolean
+          description: Has user viewed this recipe
+          example: true
+        favorite:
+          type: boolean
+          description: Is recipe in user's favorites
+          example: false
+
+    RecipeCreation:
+      type: object
+      required:
+        - title
+        - image
+        - readyInMinutes
+        - servings
+        - ingredients
+        - instructions
+      properties:
+        title:
+          type: string
+          description: Recipe title
+          example: "Homemade Pizza"
+        image:
+          type: string
+          description: Recipe image URL
+          example: "https://example.com/pizza.jpg"
+        readyInMinutes:
+          type: integer
+          description: Preparation time in minutes
+          example: 60
+        servings:
+          type: integer
+          description: Number of servings
+          example: 4
+        vegetarian:
+          type: boolean
+          description: Is vegetarian
+          example: false
+        vegan:
+          type: boolean
+          description: Is vegan
+          example: false
+        glutenFree:
+          type: boolean
+          description: Is gluten free
+          example: false
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "flour"
+              amount:
+                type: number
+                example: 2
+              unit:
+                type: string
+                example: "cups"
+        instructions:
+          type: string
+          description: Cooking instructions
+          example: "1. Mix ingredients..."
+
+    FamilyRecipe:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Recipe ID
+          example: "family_1"
+        title:
+          type: string
+          description: Recipe title
+          example: "Grandma's Chicken Soup"
+        image:
+          type: string
+          description: Recipe image URL
+          example: "https://example.com/soup.jpg"
+        author:
+          type: string
+          description: Who created this recipe
+          example: "Grandma Sarah"
+        whenToMake:
+          type: string
+          description: When is this recipe traditionally made
+          example: "Friday nights and holidays"
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "chicken"
+              amount:
+                type: number
+                example: 1
+              unit:
+                type: string
+                example: "whole"
+        instructions:
+          type: string
+          description: Cooking instructions
+          example: "1. Clean the chicken..."
+
+    FamilyRecipeCreation:
+      type: object
+      required:
+        - title
+        - author
+        - whenToMake
+        - ingredients
+        - instructions
+      properties:
+        title:
+          type: string
+          description: Recipe title
+          example: "Grandma's Chicken Soup"
+        image:
+          type: string
+          description: Recipe image URL (optional)
+          example: "https://example.com/soup.jpg"
+        author:
+          type: string
+          description: Who created this recipe
+          example: "Grandma Sarah"
+        whenToMake:
+          type: string
+          description: When is this recipe traditionally made
+          example: "Friday nights and holidays"
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "chicken"
+              amount:
+                type: number
+                example: 1
+              unit:
+                type: string
+                example: "whole"
+        instructions:
+          type: string
+          description: Cooking instructions
+          example: "1. Clean the chicken..."
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error occurred"
+        error:
+          type: string
+          example: "Invalid input"
+
+    RecipeResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Recipe created successfully"
+        recipeId:
+          type: string
+          example: "123456"

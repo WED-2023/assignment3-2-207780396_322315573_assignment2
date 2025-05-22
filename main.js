@@ -41,16 +41,14 @@ app.get("/",function(req,res)
 
 // app.use(cors());
 // app.options("*", cors());
-
 // const corsConfig = {
 //   origin: true,
 //   credentials: true
 // };
-
 // app.use(cors(corsConfig));
 // app.options("*", cors(corsConfig));
 
-var port = process.env.PORT || "80"; //local=3000 remote=80
+var port = process.env.PORT || "3000"; //local=3000 remote=3000
 //#endregion
 const user = require("./routes/user");
 const recipes = require("./routes/recipes");
