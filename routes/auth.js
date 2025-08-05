@@ -98,18 +98,44 @@ router.post("/Register", async (req, res, next) => {
       email: req.body.email,
       // profilePic: req.body.profilePic
     }
+    // validate username length and characters
+    if (!user_details.username || user_details.username.length < 3 || user_details.username.length > 8) {
+      throw { status: 400, message: "Username must be 3-8 characters long" };
+    }
+    if (!/^[a-zA-Z]+$/.test(user_details.username)) {
+      throw { status: 400, message: "Username must contain letters only" };
+    }
+
+        // validate password format
+    if (!user_details.password || user_details.password.length < 5 || user_details.password.length > 10) {
+      throw { status: 400, message: "Password must be 5-10 characters long" };
+    }
+    if (!/\d/.test(user_details.password)) {
+      throw { status: 400, message: "Password must contain at least one number" };
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(user_details.password)) {
+      throw { status: 400, message: "Password must contain at least one special character" };
+    }
+
+        // validate all fields are filled
+    if (!user_details.firstname || !user_details.lastname || !user_details.email || !user_details.country) {
+      throw { status: 400, message: "All fields are required" };
+    }
+
+    // check if username already exists
     let users = [];
     users = await DButils.execQuery("SELECT username from users");
 
     if (users.find((x) => x.username === user_details.username))
       throw { status: 409, message: "Username taken" };
 
-    // add the new username
+    // hash the password
     let hash_password = bcrypt.hashSync(
       user_details.password,
       parseInt(process.env.bcrypt_saltRounds)
     );
 
+    // add the new user to the database
     await DButils.execQuery(
       `INSERT INTO users (username, firstname, lastname, country, password, email) VALUES ('${user_details.username}', '${user_details.firstname}', '${user_details.lastname}',
       '${user_details.country}', '${hash_password}', '${user_details.email}')`

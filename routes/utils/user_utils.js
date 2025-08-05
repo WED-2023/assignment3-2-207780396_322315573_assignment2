@@ -27,43 +27,102 @@ async function getFavoriteRecipes(user_id){
     return recipes_id;
 }
 
+// /**
+//  * add new recipe for user
+//  */
+
+// async function addUserRecipe(user_id, recipe_details) {
+//     console.log("addUserRecipe called with user_id:", user_id);
+//     // check that there is a user id
+//     if (!user_id) {
+//         throw new Error("user_id is required");
+//     }
+    
+//     // convert the ingredients array to a JSON string
+//     const ingredients = JSON.stringify(recipe_details.ingredients);
+    
+//     // edit the recipe details to match the database
+//     const query = `
+//         INSERT INTO UserRecipes 
+//         (user_id, title, image, readyInMinutes, servings, vegetarian, vegan, glutenFree, ingredients, instructions) 
+//         VALUES ('${user_id}', '${recipe_details.title}', '${recipe_details.image}', ${recipe_details.readyInMinutes}, 
+//                 ${recipe_details.servings}, ${recipe_details.vegetarian ? 1 : 0}, ${recipe_details.vegan ? 1 : 0}, ${recipe_details.glutenFree ? 1 : 0}, 
+//                 '${ingredients.replace(/'/g, "''")}', '${recipe_details.instructions.replace(/'/g, "''")}')`; 
+    
+//     console.log("Executing query:", query.substring(0, 200) + "..."); // הדפסת חלק מהשאילתה לדיבאג
+    
+//     try {
+//         // execute the query to insert the recipe into the database
+//                 const result = await DButils.execQuery(
+//             `INSERT INTO UserRecipes (user_id, title, image, readyInMinutes, servings, vegetarian, vegan, glutenFree, ingredients, instructions) 
+//              VALUES ('${user_id}', '${recipe_details.title}', '${recipe_details.image}', ${recipe_details.readyInMinutes}, 
+//                     ${recipe_details.servings}, ${recipe_details.vegetarian ? 1 : 0}, ${recipe_details.vegan ? 1 : 0}, ${recipe_details.glutenFree ? 1 : 0}, 
+//                     '${ingredients.replace(/'/g, "''")}', '${recipe_details.instructions.replace(/'/g, "''")}')`
+//         );
+        
+//         // return the inserted recipe ID
+//         return `u${result.insertId}`;
+//     } catch (error) {
+//         console.error("Error in addUserRecipe:", error);
+//         throw error;
+//     }
+// }
+
+
 /**
  * add new recipe for user
  */
-
 async function addUserRecipe(user_id, recipe_details) {
     console.log("addUserRecipe called with user_id:", user_id);
+    console.log("Recipe details:", JSON.stringify(recipe_details, null, 2));
+    
     // check that there is a user id
     if (!user_id) {
         throw new Error("user_id is required");
     }
     
-    // convert the ingredients array to a JSON string
-    const ingredients = JSON.stringify(recipe_details.ingredients);
-    
-    // edit the recipe details to match the database
-    const query = `
-        INSERT INTO UserRecipes 
-        (user_id, title, image, readyInMinutes, servings, vegetarian, vegan, glutenFree, ingredients, instructions) 
-        VALUES ('${user_id}', '${recipe_details.title}', '${recipe_details.image}', ${recipe_details.readyInMinutes}, 
-                ${recipe_details.servings}, ${recipe_details.vegetarian ? 1 : 0}, ${recipe_details.vegan ? 1 : 0}, ${recipe_details.glutenFree ? 1 : 0}, 
-                '${ingredients.replace(/'/g, "''")}', '${recipe_details.instructions.replace(/'/g, "''")}')`; 
-    
-    console.log("Executing query:", query.substring(0, 200) + "..."); // הדפסת חלק מהשאילתה לדיבאג
-    
     try {
+        // convert the ingredients array to a JSON string
+        const ingredients = JSON.stringify(recipe_details.ingredients);
+        console.log("Ingredients JSON:", ingredients);
+        
+        // Use parameterized query to avoid SQL injection and handle special characters
+        const query = `
+            INSERT INTO UserRecipes 
+            (user_id, title, image, readyInMinutes, servings, vegetarian, vegan, glutenFree, ingredients, instructions) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const params = [
+            user_id,
+            recipe_details.title,
+            recipe_details.image,
+            recipe_details.readyInMinutes,
+            recipe_details.servings,
+            recipe_details.vegetarian ? 1 : 0,
+            recipe_details.vegan ? 1 : 0,
+            recipe_details.glutenFree ? 1 : 0,
+            ingredients,
+            recipe_details.instructions
+        ];
+        
+        console.log("Executing parameterized query with params:", params);
+        
         // execute the query to insert the recipe into the database
-                const result = await DButils.execQuery(
-            `INSERT INTO UserRecipes (user_id, title, image, readyInMinutes, servings, vegetarian, vegan, glutenFree, ingredients, instructions) 
-             VALUES ('${user_id}', '${recipe_details.title}', '${recipe_details.image}', ${recipe_details.readyInMinutes}, 
-                    ${recipe_details.servings}, ${recipe_details.vegetarian ? 1 : 0}, ${recipe_details.vegan ? 1 : 0}, ${recipe_details.glutenFree ? 1 : 0}, 
-                    '${ingredients.replace(/'/g, "''")}', '${recipe_details.instructions.replace(/'/g, "''")}')`
-        );
+        const result = await DButils.execQuery(query, params);
+        
+        console.log("Query result:", result);
         
         // return the inserted recipe ID
         return `u${result.insertId}`;
     } catch (error) {
         console.error("Error in addUserRecipe:", error);
+        console.error("Error details:", {
+            message: error.message,
+            code: error.code,
+            sqlState: error.sqlState,
+            sql: error.sql
+        });
         throw error;
     }
 }
@@ -130,13 +189,76 @@ async function getUserRecipes(user_id, specific_recipe_id = null) {
 /**
  * Get family recipes, optionally filtered by recipe_id
  */
+// async function getFamilyRecipes(user_id, specific_recipe_id = null) {
+//     try {
+//         console.log("Getting family recipes for user ID:", user_id, specific_recipe_id ? `with specific ID: ${specific_recipe_id}` : "");
+        
+//         // build the query - with or without filtering by specific recipe ID
+//         let query = `
+//             SELECT recipe_id, title, image, author, whenToMake, ingredients, instructions,
+//                 readyInMinutes, servings, vegetarian, vegan, glutenFree
+//             FROM FamilyRecipes 
+//             WHERE user_id = '${user_id}'
+//         `;
+        
+//         if (specific_recipe_id !== null) {
+//             query += ` AND recipe_id = ${specific_recipe_id}`;
+//         }
+        
+//         // execute the query
+//         const recipes = await DButils.execQuery(query);
+        
+//         // if looking for a specific recipe and it is not found throw 404 error
+//         if (specific_recipe_id !== null && recipes.length === 0) {
+//             throw { status: 404, message: "Recipe not found" };
+//         }
+        
+//         // convert the response to the desired format
+//         const processedRecipes = recipes.map(recipe => {
+//             let ingredientsArray = [];
+//             try {
+//                 if (recipe.ingredients) {
+//                     ingredientsArray = JSON.parse(recipe.ingredients);
+//                 }
+//             } catch (error) {
+//                 console.error("Error parsing ingredients:", error);
+//             }
+//             // retuen the recipe in the desired format
+//             return {
+//                 id: `f${recipe.recipe_id}`,
+//                 title: recipe.title,
+//                 image: recipe.image,
+//                 author: recipe.author,
+//                 whenToMake: recipe.whenToMake,
+//                 ingredients: ingredientsArray,
+//                 instructions: recipe.instructions,
+//                 readyInMinutes: recipe.readyInMinutes || 0,
+//                 servings: recipe.servings || 1,
+//                 vegetarian: Boolean(recipe.vegetarian),
+//                 vegan: Boolean(recipe.vegan),
+//                 glutenFree: Boolean(recipe.glutenFree),
+//                 // להוספת תאימות עם מתכונים רגילים:
+//                 aggregateLikes: 0, // מתכונים משפחתיים אין להם לייקים
+//                 popularity: 0
+//                         };
+//         });
+        
+//         // if looking for a specific recipe, return it directly, otherwise return the full array
+//         return specific_recipe_id !== null ? processedRecipes[0] : processedRecipes;
+//     } catch (error) {
+//         console.error("Error in getFamilyRecipes:", error);
+//         throw error;
+//     }
+// }
+
 async function getFamilyRecipes(user_id, specific_recipe_id = null) {
     try {
         console.log("Getting family recipes for user ID:", user_id, specific_recipe_id ? `with specific ID: ${specific_recipe_id}` : "");
         
-        // build the query - with or without filtering by specific recipe ID
+        // build the query - כלול את כל השדות הנדרשים
         let query = `
-            SELECT recipe_id, title, image, author, whenToMake, ingredients, instructions 
+            SELECT recipe_id, title, image, author, whenToMake, ingredients, instructions,
+                   readyInMinutes, servings, vegetarian, vegan, glutenFree
             FROM FamilyRecipes 
             WHERE user_id = '${user_id}'
         `;
@@ -154,8 +276,9 @@ async function getFamilyRecipes(user_id, specific_recipe_id = null) {
         }
         
         // convert the response to the desired format
-        const processedRecipes = recipes.map(recipe => {
+        const processedRecipes = await Promise.all(recipes.map(async recipe => {
             let ingredientsArray = [];
+            
             try {
                 if (recipe.ingredients) {
                     ingredientsArray = JSON.parse(recipe.ingredients);
@@ -163,7 +286,18 @@ async function getFamilyRecipes(user_id, specific_recipe_id = null) {
             } catch (error) {
                 console.error("Error parsing ingredients:", error);
             }
-            // retuen the recipe in the desired format
+            
+            // טען תמונות גלריה לכל מתכון משפחתי (אם הפונקציה קיימת)
+            let galleryImages = [];
+            try {
+                if (typeof getFamilyRecipeGallery === 'function') {
+                    galleryImages = await getFamilyRecipeGallery(recipe.recipe_id);
+                }
+            } catch (error) {
+                console.log("Gallery not available:", error);
+            }
+            
+            // return the recipe in the desired format
             return {
                 id: `f${recipe.recipe_id}`,
                 title: recipe.title,
@@ -171,9 +305,19 @@ async function getFamilyRecipes(user_id, specific_recipe_id = null) {
                 author: recipe.author,
                 whenToMake: recipe.whenToMake,
                 ingredients: ingredientsArray,
-                instructions: recipe.instructions
+                instructions: recipe.instructions,
+                gallery: galleryImages,
+                // הוסף את השדות החסרים
+                readyInMinutes: recipe.readyInMinutes || 0,
+                servings: recipe.servings || 1,
+                vegetarian: recipe.vegetarian === 1,
+                vegan: recipe.vegan === 1,
+                glutenFree: recipe.glutenFree === 1,
+                // הוסף שדות נוספים לתאימות
+                popularity: 0,
+                aggregateLikes: 0
             };
-        });
+        }));
         
         // if looking for a specific recipe, return it directly, otherwise return the full array
         return specific_recipe_id !== null ? processedRecipes[0] : processedRecipes;
@@ -182,6 +326,7 @@ async function getFamilyRecipes(user_id, specific_recipe_id = null) {
         throw error;
     }
 }
+
 
 /**
  * Add a family recipe for a user
@@ -434,6 +579,35 @@ async function isRecipeViewed(user_id, recipe_id) {
 }
 
 
+/**
+ * Get gallery images for a specific family recipe
+ */
+async function getFamilyRecipeGallery(recipe_id) {
+    try {
+        console.log("Getting gallery images for family recipe ID:", recipe_id);
+        
+        const query = `
+            SELECT image_url, caption, sort_order
+            FROM FamilyRecipeGallery 
+            WHERE recipe_id = ${recipe_id}
+            ORDER BY sort_order ASC
+        `;
+        
+        const galleryImages = await DButils.execQuery(query);
+        
+        // המר לפורמט הנכון
+        return galleryImages.map(img => ({
+            url: img.image_url,
+            caption: img.caption
+        }));
+        
+    } catch (error) {
+        console.error("Error getting family recipe gallery:", error);
+        return []; // החזר מערך ריק במקרה של שגיאה
+    }
+}
+
+
 exports.markRecipeAsViewed = markRecipeAsViewed;
 exports.getLastViewedRecipes = getLastViewedRecipes;
 exports.addFamilyRecipe = addFamilyRecipe;
@@ -445,3 +619,4 @@ exports.getUserRecipes = getUserRecipes;
 exports.getViewedRecipeIds = getViewedRecipeIds;
 exports.getFavoriteRecipeIds = getFavoriteRecipeIds;
 exports.isRecipeViewed = isRecipeViewed;
+exports.getFamilyRecipeGallery = getFamilyRecipeGallery;
